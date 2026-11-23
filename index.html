@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#172b4d">
+    <title>ALCATECH QUEST — Rastreador de Conquistas</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Nunito:wght@400;600;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script>
+        const getVar = name => `rgb(var(--${name}) / <alpha-value>)`;
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        bg: getVar('bg'),
+                        panel: getVar('panel'),
+                        panel2: getVar('panel2'),
+                        line: getVar('line'),
+                        ink: getVar('ink'),
+                        muted: getVar('muted'),
+                        gold: getVar('gold'),
+                        mint: getVar('mint'),
+                        coral: getVar('coral')
+                    },
+                    fontFamily: {
+                        display: ['"Bricolage Grotesque"', 'sans-serif'],
+                        sans: ['Nunito', 'sans-serif']
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- Bibliotecas para capturar a seção real da página como imagem e colocá-la no PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- Estilos Globais e Variáveis de Tema (Azul Pastel) -->
+    <style>
+        :root {
+            --bg: 15 27 49;
+            --panel: 24 40 67;
+            --panel2: 34 54 84;
+            --line: 64 91 129;
+            --ink: 235 243 255;
+            --muted: 166 188 218;
+            --gold: 153 190 242;
+            /* Azul pastel usado nos botões e destaques */
+            --mint: 119 169 226;
+            --coral: 235 125 135;
+        }
+
+        .light {
+            --bg: 237 244 255;
+            --panel: 250 252 255;
+            --panel2: 222 234 252;
+            --line: 184 204 235;
+            --ink: 27 47 79;
+            --muted: 87 111 151;
+            --gold: 75 117 184;
+            /* Azul mais fechado para manter contraste no tema claro */
+            --mint: 100 145 207;
+            --coral: 190 57 75;
+        }
+        /* Visual renovado: fundo atmosférico e cartões com acabamento moderno */
+        html { scroll-behavior: smooth; }
+        body {
+            position: relative;
+            background:
+                radial-gradient(ellipse at 12% 8%, rgb(var(--mint) / .18), transparent 35%),
+                radial-gradient(ellipse at 88% 28%, rgb(var(--gold) / .12), transparent 32%),
+                rgb(var(--bg));
+        }
+        #rainCanvas {
+            position: fixed;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+            opacity: .82;
+        }
+        body > *:not(#rainCanvas) { position: relative; z-index: 1; }
+        header { box-shadow: 0 8px 30px rgb(0 0 0 / .12); }
+        .rounded-2xl.border, section.rounded-2xl, li.rounded-2xl {
+            box-shadow: 0 12px 34px rgb(0 0 0 / .08);
+            backdrop-filter: blur(8px);
+        }
+        button, a { -webkit-tap-highlight-color: transparent; }
+        button { transition: transform .18s ease, filter .18s ease, border-color .18s ease; }
+        button:hover { filter: brightness(1.08); }
+        button:active { transform: scale(.98); }
+        #btnTema {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: .45rem;
+            min-width: 126px;
+            border-radius: 999px;
+            padding: .65rem .9rem;
+            font-weight: 800;
+        }
+        .light #rainCanvas { opacity: .78; }
+        .light body { background:
+            radial-gradient(ellipse at 12% 8%, rgb(var(--mint) / .16), transparent 35%),
+            radial-gradient(ellipse at 88% 28%, rgb(var(--gold) / .12), transparent 32%),
+            rgb(var(--bg)); }
+        /* Acabamento azul pastel nos principais elementos interativos */
+        button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: 2px solid rgb(var(--gold) / .95);
+            outline-offset: 3px;
+        }
+        .light header { background-color: rgb(237 244 255 / .88); }
+        .light .rounded-2xl.border, .light section.rounded-2xl, .light li.rounded-2xl {
+            box-shadow: 0 12px 34px rgb(47 89 148 / .09);
+        }
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            *, *::before, *::after { transition-duration: .01ms !important; }
+        }
+    </style>
+</head>
+
+<body class="min-h-screen bg-bg font-sans text-ink antialiased transition-colors duration-300">
+    <canvas id="rainCanvas" aria-hidden="true"></canvas>
+
+    <!-- Cabeçalho -->
+    <header class="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur-md">
+        <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3.5 sm:px-6">
+            <div class="flex items-center gap-3">
+                <div class="h-10 w-10 rounded-xl shadow-sm shrink-0">
+                    <div class="h-12 w-12 rounded-xl overflow-hidden shadow-sm shrink-0">
+                        <img src="https://eempgprspimlhzlofvjx.supabase.co/storage/v1/object/public/icones/logo_turma.webp"
+                            class="h-full w-full object-cover">
+                    </div>
+
+                </div>
+                <div class="flex flex-col">
+                    <span class="font-display text-xl font-extrabold tracking-tight">ALCATECH QUEST</span>
+                    <div class="text-[10px] tracking-[.25em] text-gray-400">SALVE SUAS CONQUISTAS GAMER NA ALCATECH
+                        QUEST</div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2.5">
+                <button id="btnTema"
+                    class="rounded-xl border border-line bg-panel2 p-2.5 text-sm font-bold transition hover:border-gold"
+                    title="Alternar entre tema escuro e claro" aria-label="Alternar tema">☀️ Tema claro</button>
+                <button id="btnNovaConquista"
+                    class="rounded-xl bg-gold px-4 py-2.5 text-sm font-extrabold text-bg transition hover:brightness-110 shadow-sm">＋
+                    Adicionar</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Conteúdo Principal -->
+    <main class="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-12">
+
+        <!-- Painel de Apresentação e Progresso -->
+        <section class="grid gap-8 md:grid-cols-[1.2fr_1fr] items-center">
+            <div class="space-y-4">
+                <div
+                    class="inline-flex items-center gap-2 rounded-full border border-gold/30 bg-gold/10 px-3.5 py-1 text-xs font-bold text-gold">
+                    <span id="labelRank">🌱 Caçador Iniciante (Nível 1)</span>
+                </div>
+                <h1 class="font-display text-4xl sm:text-5xl font-extrabold leading-tight tracking-tight">Quantos
+                    troféus faltam pra platina?</h1>
+                <p class="text-muted text-lg leading-relaxed">Gerencie suas conquistas por jogo, defina notas e
+                    acompanhe sua evolução direto no navegador, sem burocracia ou login.</p>
+                <div class="flex flex-wrap gap-3 pt-2">
+                    <a href="#secaoColecao"
+                        class="rounded-xl bg-gold px-5 py-3 text-sm font-extrabold text-bg transition hover:brightness-110 shadow-sm">Ver
+                        minhas conquistas</a>
+                    <a href="#secaoFormulario"
+                        class="rounded-xl border border-line bg-panel2 px-5 py-3 text-sm font-extrabold transition hover:border-gold">Cadastrar
+                        item</a>
+                </div>
+            </div>
+
+            <!-- Card de Estatísticas -->
+            <div class="rounded-2xl border border-line bg-panel p-6 shadow-md space-y-5">
+                <div class="flex items-center justify-between">
+                    <span id="textoProgresso" class="text-sm font-semibold text-muted">Nenhuma conquista
+                        registrada.</span>
+                </div>
+                <div>
+                    <div class="flex justify-between items-baseline">
+                        <span class="text-sm text-muted">Progresso do nível (3 missões por etapa)</span>
+                        <span id="porcentagemProgresso" class="font-display text-4xl font-extrabold text-gold">0%</span>
+                    </div>
+                    <div class="mt-3 h-3 w-full overflow-hidden rounded-full bg-panel2">
+                        <div id="barraProgresso" class="h-full w-0 rounded-full bg-gold transition-all duration-500">
+                        </div>
+                    </div>
+                </div>
+                <dl class="grid grid-cols-4 gap-2 border-t border-line pt-4 text-center">
+                    <div>
+                        <dd id="statJogos" class="font-display text-xl font-extrabold">0</dd>
+                        <dt class="text-xs text-muted">jogos</dt>
+                    </div>
+                    <div>
+                        <dd id="statObtidas" class="font-display text-xl font-extrabold">0</dd>
+                        <dt class="text-xs text-muted">obtidas</dt>
+                    </div>
+                    <div>
+                        <dd id="statXP" class="font-display text-xl font-extrabold">0</dd>
+                        <dt class="text-xs text-muted">Coins🪙</dt>
+                    </div>
+                    <div>
+                        <dd id="statPlatinas" class="font-display text-xl font-extrabold">0</dd>
+                        <dt class="text-xs text-muted">platinas</dt>
+                    </div>
+                </dl>
+                <div class="flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3 text-xs text-muted">
+                    <span id="labelMediaXP">Média: 0 Coins🪙</span>
+                    <span id="labelNivel">Nível 1 de 10</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Foco Atual / Metas Pendentes -->
+        <section id="secaoFoco" class="hidden rounded-2xl border border-gold/40 bg-gold/5 p-6 shadow-sm space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="font-display text-lg font-extrabold flex items-center gap-2"><span>🎯</span> Foco Atual /
+                    Próximos Alvos</h2>
+                <span class="text-xs text-muted">Recomendações pendentes</span>
+            </div>
+            <div id="listaFoco" class="grid gap-3 sm:grid-cols-3"></div>
+        </section>
+
+        <!-- Seção da Coleção & Filtros -->
+        <section id="secaoColecao" class="space-y-4 scroll-mt-20">
+            <div class="flex flex-wrap items-end justify-between gap-2">
+                <div>
+                    <h2 class="font-display text-2xl font-extrabold">Coleção de Conquistas</h2>
+                    <p id="contadorResultados" class="text-sm text-muted">0 itens encontrados</p>
+                </div>
+                <span class="text-xs text-muted">Salvo localmente no navegador</span>
+            </div>
+
+            <!-- Filtros por Categoria (Pills) -->
+            <div id="grupoFiltroCategorias" class="flex flex-wrap gap-2 pt-1">
+                <button type="button" data-categoria="all"
+                    class="rounded-full border border-gold bg-gold px-4 py-1.5 text-xs font-bold text-bg transition">Todas</button>
+                <button type="button" data-categoria="História"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">📖
+                    História</button>
+                <button type="button" data-categoria="Exploração"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">🗺️
+                    Exploração</button>
+                <button type="button" data-categoria="Combate"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">⚔️
+                    Combate</button>
+                <button type="button" data-categoria="Coletáveis"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">💎
+                    Coletáveis</button>
+                <button type="button" data-categoria="Desafio"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">🔥
+                    Desafio</button>
+                <button type="button" data-categoria="Esporte"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">⚽
+                    Esporte</button>
+                <button type="button" data-categoria="Escape"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">🔐
+                    Escape</button>
+                <button type="button" data-categoria="100% / Platina"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">🏆
+                    100% / Platina</button>
+                <button type="button" data-categoria="Outro"
+                    class="rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition">✨
+                    Outro</button>
+            </div>
+
+            <!-- Barra de Pesquisa e Filtros Avançados -->
+            <div
+                class="rounded-2xl border border-line bg-panel p-4 shadow-sm grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1fr_auto]">
+                <input id="inputBusca" type="search" placeholder="Buscar jogo ou conquista..."
+                    class="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm outline-none focus:border-gold">
+                <select id="selectStatus"
+                    class="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm outline-none focus:border-gold">
+                    <option value="all">Status: Todos</option>
+                    <option value="todo">Pendentes</option>
+                    <option value="done">Concluídas</option>
+                </select>
+                <select id="selectRaridade"
+                    class="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm outline-none focus:border-gold">
+                    <option value="all">Raridade: Todas</option>
+                    <option>Comum</option>
+                    <option>Rara</option>
+                    <option>Épica</option>
+                    <option>Lendária</option>
+                    <option>Platina</option>
+                </select>
+                <select id="selectOrdenacao"
+                    class="w-full rounded-xl border border-line bg-bg px-3.5 py-2.5 text-sm outline-none focus:border-gold">
+                    <option value="new">Mais recentes</option>
+                    <option value="xp">Mais Coins🪙</option>
+                    <option value="az">Nome (A-Z)</option>
+                </select>
+                <button id="btnLimparFiltros"
+                    class="rounded-xl border border-line bg-panel2 px-4 py-2.5 text-sm font-bold transition hover:border-gold">Limpar</button>
+            </div>
+
+            <!-- Listagem de Conquistas -->
+            <ul id="listaConquistas" class="grid gap-3 md:grid-cols-2 pt-2"></ul>
+        </section>
+
+        <!-- Seção de Jogos -->
+        <section class="space-y-4">
+            <h2 class="font-display text-2xl font-extrabold">Progresso por Jogo</h2>
+            <ul id="listaJogos" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"></ul>
+        </section>
+
+        <!-- Formulário de Cadastro / Edição -->
+        <section id="secaoFormulario"
+            class="rounded-2xl border border-line bg-panel p-6 shadow-sm space-y-6 scroll-mt-20">
+            <div>
+                <h2 id="tituloFormulario" class="font-display text-2xl font-extrabold">Cadastrar Conquista</h2>
+                <p class="text-sm text-muted">Adicione metas personalizadas para qualquer jogo.</p>
+            </div>
+            <form id="formularioConquista" class="grid gap-4 sm:grid-cols-2">
+                <div>
+                    <label class="block text-sm font-bold text-muted mb-1.5">Jogo *</label>
+                    <select id="formJogo" required aria-label="Escolher jogo"
+                        class="w-full rounded-xl border border-line bg-bg px-3.5 py-3 text-sm outline-none focus:border-blue-300">
+                        <option value="">Selecione um jogo...</option>
+                        <option>A Mansão</option>
+                        <option>Altitude Zero - Military Flight</option>
+                        <option>Duelo de Bruxos</option>
+                        <option>Gabryel Adventure</option>
+                        <option>MineBlock</option>
+                        <option>Pixel Fury</option>
+                        <option>Star Wars: Lightsaber Duel - Ultra Edition</option>
+                        <option>Neon Highway ’86</option>
+                        <option>Ultimate Football 3D</option>
+                        
+                        <option></option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-muted mb-1.5">Nome da Conquista *</label>
+                    <select id="formNome" required aria-label="Escolher nome da conquista" disabled
+                        class="w-full rounded-xl border border-line bg-bg px-3.5 py-3 text-sm outline-none focus:border-blue-300">
+                        <option value="">Primeiro, selecione um jogo...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-muted mb-1.5">Raridade</label>
+                    <select id="formRaridade"
+                        class="w-full rounded-xl border border-line bg-bg px-3.5 py-3 text-sm outline-none focus:border-gold">
+                        <option>Comum</option>
+                        <option>Rara</option>
+                        <option>Épica</option>
+                        <option>Lendária</option>
+                        <option>Platina</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-muted mb-1.5">Recompensa em Coins🪙</label>
+                    <select id="formXP"
+                        class="w-full rounded-xl border border-line bg-bg px-3.5 py-3 text-sm outline-none focus:border-gold">
+                        <option value="10">10 Coins🪙</option>
+                        <option value="25" selected>25 Coins🪙</option>
+                        <option value="50">50 Coins🪙</option>
+                        <option value="100">100 Coins🪙</option>
+                        <option value="250">250 Coins🪙</option>
+                        <option value="500">500 Coins🪙</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-muted mb-1.5">Categoria</label>
+                    <select id="formCategoria"
+                        class="w-full rounded-xl border border-line bg-bg px-3.5 py-3 text-sm outline-none focus:border-gold">
+                        <option>História</option>
+                        <option>Exploração</option>
+                        <option>Combate</option>
+                        <option>Coletáveis</option>
+                        <option>Esporte</option>
+                        <option>Escape</option>
+                        <option>100% / Platina</option>
+                        <option>Outro</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-muted mb-1.5">Ícone</label>
+                    <select id="formIcone"
+                        class="w-full rounded-xl border border-line bg-bg px-3.5 py-3 text-sm outline-none focus:border-gold">
+                        <option>🏆</option>
+                        <option>⚔️</option>
+                        <option>🗺️</option>
+                        <option>✈️</option>
+                        <option>🪄</option>
+                        <option>🐬</option>
+                        <option>🪐</option>
+                        <option>🥊</option>
+                        <option>🧩</option>
+                        <option>⚽</option>
+                        
+                    </select>
+                </div>
+                <div class="sm:col-span-2">
+                    <label class="block text-sm font-bold text-muted mb-1.5">Requisito / Dica</label>
+                    <textarea id="formDescricao" maxlength="300" rows="3"
+                        placeholder="O que é preciso fazer para desbloquear?"
+                        class="w-full rounded-xl border border-line bg-bg px-3.5 py-3 text-sm outline-none focus:border-gold"></textarea>
+                </div>
+                <div class="flex flex-wrap gap-3 sm:col-span-2 pt-2">
+                    <button type="submit" id="btnSalvarForm"
+                        class="rounded-xl bg-gold px-5 py-3 text-sm font-extrabold text-bg transition hover:brightness-110 shadow-sm">Salvar
+                        conquista</button>
+                    <button type="button" id="btnCancelarEdicao"
+                        class="hidden rounded-xl border border-line bg-panel2 px-5 py-3 text-sm font-extrabold transition">Cancelar</button>
+                    <button type="button" id="btnLimparForm"
+                        class="rounded-xl border border-line bg-panel2 px-5 py-3 text-sm font-extrabold transition">Limpar
+                        campos</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Seção de Exportar PDF e Reset -->
+        <section class="grid gap-4 md:grid-cols-2 pt-2">
+            <div class="rounded-2xl border border-line bg-panel p-6 shadow-sm space-y-3">
+                <h2 class="font-display text-lg font-extrabold">Exportar Relatório</h2>
+                <p class="text-sm text-muted">Exporte somente as conquistas concluídas em uma imagem PDF de uma página.
+                </p>
+                <div class="flex flex-wrap gap-3 pt-1">
+                    <button id="btnExportar"
+                        class="rounded-xl bg-gold px-4 py-2.5 text-sm font-extrabold text-bg transition hover:brightness-110 shadow-sm">Baixar
+                        como PDF</button>
+                </div>
+            </div>
+            <div class="rounded-2xl border border-line bg-panel p-6 shadow-sm space-y-3">
+                <h2 class="font-display text-lg font-extrabold text-coral">Delete Zone</h2>
+                <p class="text-sm text-muted">Apaga permanentemente todos os registros salvos neste navegador.</p>
+                <button id="btnApagarTudo"
+                    class="rounded-xl border border-coral/40 px-4 py-2.5 text-sm font-extrabold text-coral transition hover:bg-coral/10">Apagar
+                    Tudo</button>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Rodapé -->
+    <footer class="border-t border-line px-4 py-6 text-center text-sm text-muted">
+        ALCATECH QUEST · Dados armazenados localmente no seu navegador.
+    </footer>
+
+    <!-- Toast de Notificação -->
+    <div id="toast" role="status"
+        class="pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 translate-y-6 rounded-xl bg-ink px-4 py-2.5 text-sm font-bold text-bg opacity-0 transition-all duration-300 shadow-lg">
+    </div>
+
+    <!-- Script Reescrito Do Zero -->
+    <script>
+        (() => {
+            'use strict';
+
+            // Configurações e Chaves de Armazenamento
+            const STORAGE_KEY = 'platinum_quest_v2_db';
+            const THEME_KEY = 'platinum_quest_v2_theme';
+
+            const ESTILOS_RARIDADE = {
+                'Comum': 'bg-panel2 text-muted',
+                'Rara': 'bg-sky-500/15 text-sky-400',
+                'Épica': 'bg-violet-500/15 text-violet-400',
+                'Lendária': 'bg-gold/15 text-gold',
+                'Platina': 'bg-gold text-bg font-extrabold'
+            };
+
+            // Estado Central da Aplicação
+            const state = {
+                conquistas: [],
+                idEdicao: null,
+                filtroCategoria: 'all'
+            };
+
+            // Elementos DOM Selecionados por ID
+            const $ = id => document.getElementById(id);
+
+            // Utilitários
+            const escaparHtml = str => String(str ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
+            const normalizar = str => String(str ?? '').trim().toLowerCase();
+
+            function mostrarToast(msg) {
+                const toast = $('toast');
+                toast.textContent = msg;
+                toast.classList.remove('opacity-0', 'translate-y-6');
+                setTimeout(() => toast.classList.add('opacity-0', 'translate-y-6'), 2500);
+            }
+
+            // Gerenciamento de Persistência (LocalStorage)
+            function carregarDados() {
+                try {
+                    const raw = localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return [];
+                    const parsed = JSON.parse(raw);
+                    return Array.isArray(parsed) ? parsed.map(validarItem).filter(Boolean) : [];
+                } catch (e) {
+                    console.error('Erro ao carregar dados:', e);
+                    return [];
+                }
+            }
+
+            function salvarDados() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.conquistas));
+                } catch (e) {
+                    console.error('Erro ao salvar dados:', e);
+                    mostrarToast('Erro ao salvar no navegador!');
+                }
+                renderizarTudo();
+            }
+
+            function validarItem(item) {
+                if (!item || typeof item !== 'object') return null;
+                const jogo = String(item.jogo || item.game || '').trim().slice(0, 80);
+                const nome = String(item.nome || item.name || '').trim().slice(0, 80);
+                if (!jogo || !nome) return null;
+
+                return {
+                    id: String(item.id || crypto.randomUUID?.() || Date.now() + Math.random()),
+                    jogo,
+                    nome,
+                    raridade: ['Comum', 'Rara', 'Épica', 'Lendária', 'Platina'].includes(item.raridade) ? item.raridade : 'Comum',
+                    xp: Number(item.xp) >= 0 ? Number(item.xp) : 25,
+                    categoria: String(item.categoria || 'Outro').slice(0, 50),
+                    icone: String(item.icone || '🏆').slice(0, 10),
+                    descricao: String(item.descricao || item.desc || '').slice(0, 300),
+                    concluida: Boolean(item.concluida || item.done),
+                    criadoEm: Number(item.criadoEm || item.created) || Date.now()
+                };
+            }
+
+            // Sistema de Temas
+            function inicializarTema() {
+                const temaSalvo = localStorage.getItem(THEME_KEY);
+                const prefereClaro = window.matchMedia('(prefers-color-scheme: light)').matches;
+                if (temaSalvo === 'light' || (!temaSalvo && prefereClaro)) {
+                    document.documentElement.classList.add('light');
+                }
+                atualizarBotaoTema();
+            }
+
+            function alternarTema() {
+                const claro = document.documentElement.classList.toggle('light');
+                localStorage.setItem(THEME_KEY, claro ? 'light' : 'dark');
+                atualizarBotaoTema();
+            }
+
+            function atualizarBotaoTema() {
+                const claro = document.documentElement.classList.contains('light');
+                $('btnTema').textContent = claro ? '🌙 Tema escuro' : '☀️ Tema claro';
+                $('btnTema').setAttribute('aria-label', claro ? 'Ativar tema escuro' : 'Ativar tema claro');
+                $('btnTema').title = claro ? 'Ativar tema escuro' : 'Ativar tema claro';
+            }
+
+            // Cálculos de Estatísticas e Rank
+            // Cada 3 missões concluídas aumentam 1 nível. O nível máximo é 10.
+            const calcularRank = concluidas => {
+                const nivel = Math.min(10, 1 + Math.floor(concluidas / 3));
+                const titulos = {
+                    1: '🌱 Caçador Iniciante',
+                    2: '⚔️ Explorador Ativo',
+                    3: '🔥 Caçador Veterano',
+                    4: '⭐ Mestre dos Troféus',
+                    5: '🏆 Caçador Experiente',
+                    6: '💎 Especialista em Conquistas',
+                    7: '🚀 Caçador Elite',
+                    8: '👑 Mestre da Platina',
+                    9: '🌌 Lenda Gamer',
+                    10: '👑 Lenda Suprema'
+                };
+                return `${titulos[nivel]} (Nível ${nivel})`;
+            };
+
+            function obterEstatisticas(totalJogos) {
+                const concluidas = state.conquistas.filter(i => i.concluida);
+                const platinados = new Set(concluidas.filter(i => i.raridade === 'Platina').map(i => normalizar(i.jogo)));
+                const total = state.conquistas.length;
+                const xpTotal = concluidas.reduce((acc, i) => acc + i.xp, 0);
+                const mediaXP = concluidas.length ? Math.round(xpTotal / concluidas.length) : 0;
+                const geral = total ? Math.round((concluidas.length / total) * 100) : 0;
+                const nivel = Math.min(10, 1 + Math.floor(concluidas.length / 3));
+                const resto = concluidas.length % 3;
+                // Mostra 100% nos marcos de 3 missões e mantém 100% ao atingir o nível máximo.
+                const porcentagem = nivel >= 10 ? 100 : (concluidas.length > 0 && resto === 0 ? 100 : Math.round((resto / 3) * 100));
+
+                return { total, obtidas: concluidas.length, xp: xpTotal, mediaXP, platinas: platinados.size, jogos: totalJogos, porcentagem, nivel, geral };
+            }
+
+            function agruparPorJogo() {
+                const mapa = new Map();
+                for (const item of state.conquistas) {
+                    const chave = normalizar(item.jogo);
+                    if (!mapa.has(chave)) mapa.set(chave, { nome: item.jogo, lista: [] });
+                    mapa.get(chave).lista.push(item);
+                }
+                return [...mapa.values()].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+            }
+
+            // Filtragem e Ordenação
+            function filtrarConquistas() {
+                const busca = normalizar($('inputBusca').value);
+                const status = $('selectStatus').value;
+                const raridade = $('selectRaridade').value;
+                const ordenacao = $('selectOrdenacao').value;
+
+                const filtradas = state.conquistas.filter(item => {
+                    const texto = normalizar(`${item.jogo} ${item.nome} ${item.descricao} ${item.categoria}`);
+                    const matchBusca = !busca || texto.includes(busca);
+                    const matchStatus = status === 'all' || (status === 'done' ? item.concluida : !item.concluida);
+                    const matchRaridade = raridade === 'all' || item.raridade === raridade;
+                    const matchCat = state.filtroCategoria === 'all' || item.categoria === state.filtroCategoria;
+
+                    return matchBusca && matchStatus && matchRaridade && matchCat;
+                });
+
+                const comparadores = {
+                    xp: (a, b) => b.xp - a.xp,
+                    az: (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'),
+                    new: (a, b) => b.criadoEm - a.criadoEm
+                };
+
+                return filtradas.sort(comparadores[ordenacao] || comparadores.new);
+            }
+
+            // Renderização da Interface
+            function renderizarPillsCategorias() {
+                document.querySelectorAll('#grupoFiltroCategorias button').forEach(btn => {
+                    const cat = btn.dataset.categoria;
+                    const ativa = cat === state.filtroCategoria;
+                    btn.className = ativa
+                        ? 'rounded-full border border-gold bg-gold px-4 py-1.5 text-xs font-bold text-bg transition shadow-sm'
+                        : 'rounded-full border border-line bg-panel2 px-4 py-1.5 text-xs font-bold text-muted hover:border-gold transition';
+                });
+            }
+
+            function renderizarFoco() {
+                const pendentes = state.conquistas.filter(i => !i.concluida);
+                const secao = $('secaoFoco');
+                if (!pendentes.length) {
+                    secao.classList.add('hidden');
+                    return;
+                }
+                secao.classList.remove('hidden');
+                const top = [...pendentes].sort((a, b) => b.xp - a.xp).slice(0, 3);
+
+                $('listaFoco').innerHTML = top.map(i => `
+                    <div class="rounded-xl border border-gold/30 bg-panel p-3.5 flex items-start gap-3">
+                        <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-panel2 text-lg">${escaparHtml(i.icone)}</span>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="font-display text-sm font-extrabold truncate">${escaparHtml(i.nome)}</h3>
+                            <p class="text-xs text-muted truncate">${escaparHtml(i.jogo)} · <span class="font-bold text-gold">${i.xp} Coins🪙</span></p>
+                            <button type="button" data-acao="concluir" data-id="${i.id}" class="mt-2 text-xs font-bold text-gold hover:underline">✓ Marcar como feita</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            function renderizarListaConquistas(lista) {
+                const contenedor = $('listaConquistas');
+                $('contadorResultados').textContent = `${lista.length} ${lista.length === 1 ? 'item encontrado' : 'itens encontrados'}`;
+
+                if (!lista.length) {
+                    contenedor.innerHTML = `
+                        <li class="col-span-full rounded-2xl border border-dashed border-line p-10 text-center space-y-2">
+                            <p class="font-display text-lg font-extrabold">Nenhuma conquista encontrada</p>
+                            <p class="text-sm text-muted">Tente ajustar os filtros ou cadastre seu primeiro desafio.</p>
+                        </li>`;
+                    return;
+                }
+
+                contenedor.innerHTML = lista.map(i => `
+                    <li class="relative flex gap-3.5 rounded-2xl border p-4.5 transition ${i.concluida ? 'border-mint/50 bg-mint/5' : 'border-line bg-panel'}">
+                        <button type="button" data-acao="concluir" data-id="${i.id}" aria-label="Marcar conquista" class="grid h-11 w-11 shrink-0 place-items-center rounded-full border-2 text-xl transition active:scale-95 ${i.concluida ? 'border-mint bg-mint text-bg' : 'border-line bg-panel2 hover:border-gold'}">
+                            ${i.concluida ? '✓' : escaparHtml(i.icone)}
+                        </button>
+                        <div class="min-w-0 flex-1 space-y-1">
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-display text-base font-extrabold leading-snug ${i.concluida ? 'line-through text-muted' : ''}">${escaparHtml(i.nome)}</h3>
+                                <span class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-extrabold ${ESTILOS_RARIDADE[i.raridade]}">${escaparHtml(i.raridade)}</span>
+                            </div>
+                            <p class="text-sm text-muted whitespace-pre-wrap break-words">${escaparHtml(i.descricao) || 'Sem notas ou dicas cadastradas.'}</p>
+                            <p class="text-xs text-muted pt-1">${escaparHtml(i.jogo)} · ${escaparHtml(i.categoria)} · <span class="font-bold text-gold">${i.xp} Coins🪙</span></p>
+                            <div class="flex gap-2 pt-2">
+                                <button type="button" data-acao="editar" data-id="${i.id}" class="rounded-lg border border-line bg-panel2 px-3 py-1.5 text-xs font-bold transition hover:border-blue-300">Editar</button>
+                                <button type="button" data-acao="concluir" data-id="${i.id}" aria-pressed="${i.concluida}" class="rounded-lg border px-3 py-1.5 text-xs font-bold transition ${i.concluida ? 'border-blue-300/50 bg-blue-300/10 text-blue-200 hover:bg-blue-300/20' : 'border-blue-300/40 bg-blue-400/15 text-blue-200 hover:bg-blue-400/25'}">${i.concluida ? '↩ Reabrir' : '✓ Marcar concluída'}</button>
+                                <button type="button" data-acao="excluir" data-id="${i.id}" class="rounded-lg border border-coral/40 px-3 py-1.5 text-xs font-bold text-coral transition hover:bg-coral/10">Excluir</button>
+                            </div>
+                        </div>
+                    </li>
+                `).join('');
+            }
+
+            function renderizarJogos(grupos) {
+                const contenedor = $('listaJogos');
+                if (!grupos.length) {
+                    contenedor.innerHTML = `<li class="col-span-full rounded-2xl border border-dashed border-line p-8 text-center text-muted">Os jogos aparecerão aqui após cadastrar conquistas.</li>`;
+                    return;
+                }
+
+                contenedor.innerHTML = grupos.map(({ nome, lista }) => {
+                    const concluidas = lista.filter(i => i.concluida).length;
+                    const pct = Math.round((concluidas / lista.length) * 100);
+                    const plat = lista.some(i => i.raridade === 'Platina' && i.concluida);
+                    const xpTotal = lista.reduce((sum, i) => sum + (i.concluida ? i.xp : 0), 0);
+
+                    return `
+                        <div class="rounded-2xl border border-line bg-panel p-5 space-y-3">
+                            <div class="flex items-start justify-between gap-2">
+                                <h3 class="font-display text-lg font-extrabold truncate">${escaparHtml(nome)}</h3>
+                                ${plat ? '<span class="rounded-full bg-gold px-2.5 py-0.5 text-xs font-extrabold text-bg">Platinado 🏆</span>' : `<span class="text-sm font-bold text-muted">${pct}%</span>`}
+                            </div>
+                            <p class="text-sm text-muted">${concluidas} de ${lista.length} obtidas · ${xpTotal} Coins🪙</p>
+                            <div class="h-2 w-full overflow-hidden rounded-full bg-panel2">
+                                <div class="h-full rounded-full ${plat ? 'bg-gold' : 'bg-mint'}" style="width: ${pct}%"></div>
+                            </div>
+                            <button type="button" data-acao="filtrar-jogo" data-jogo="${escaparHtml(nome)}" class="w-full mt-1 rounded-xl border border-line bg-panel2 py-1.5 text-xs font-bold transition hover:border-gold">Ver conquistas</button>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function renderizarTudo() {
+                renderizarPillsCategorias();
+                const filtradas = filtrarConquistas();
+                renderizarListaConquistas(filtradas);
+
+                const grupos = agruparPorJogo();
+                renderizarJogos(grupos);
+
+                const stats = obterEstatisticas(grupos.length);
+                $('statJogos').textContent = stats.jogos;
+                $('statObtidas').textContent = stats.obtidas;
+                $('statXP').textContent = stats.xp.toLocaleString('pt-BR');
+                $('statPlatinas').textContent = stats.platinas;
+                $('labelMediaXP').textContent = `Média: ${stats.mediaXP} Coins🪙`;
+                $('labelRank').textContent = calcularRank(stats.obtidas);
+                $('labelNivel').textContent = `Nível ${stats.nivel} de 10`;
+
+                $('porcentagemProgresso').textContent = `${stats.porcentagem}%`;
+                $('barraProgresso').style.width = `${stats.porcentagem}%`;
+
+                if (!stats.obtidas) {
+                    $('textoProgresso').textContent = 'Conclua 3 missões para subir ao nível 2.';
+                } else if (stats.nivel >= 10) {
+                    $('textoProgresso').textContent = '🏆 Nível máximo 10 alcançado!';
+                } else if (stats.obtidas % 3 === 0) {
+                    $('textoProgresso').textContent = `🎉 Marco alcançado! ${stats.obtidas} missões concluídas — nível ${stats.nivel}.`;
+                } else {
+                    const faltam = 3 - (stats.obtidas % 3);
+                    $('textoProgresso').textContent = `${stats.obtidas} missões concluídas · faltam ${faltam} para subir de nível.`;
+                }
+
+                renderizarFoco();
+            }
+
+            // Cinco conquistas sugeridas para cada jogo.
+            const CONQUISTAS_POR_JOGO = {
+                'A Mansão': [
+                    'Escape da mansão',
+                    'Encontre a chave misteriosa',
+                    'Explore todos os lugares da sala',
+                    'Resolva todos os enigmas',
+                    'Descubra o segredo final'
+                ],
+                'Altitude Zero - Military Flight': [
+                    'Complete 10 palavras seguidas sem errar',
+                    'Mate 30 aviões',
+                    'Mate 50 aviões',
+                    'Mate 100 aviões',
+                    'Mate 1000 aviões'
+                ],
+                'Duelo de Bruxos': [
+                    'Vença seu primeiro duelo',
+                    'Use um feitiço',
+                    'Vença 5 duelos seguidos',
+                    'Vença 10 duelos seguidos',
+                    'Derrote o Mago Supremo'
+                ],
+                'Gabryel Adventure': [
+                    'O início da jornada de Gabryel',
+                    'Conclua o Mundo 1',
+                    'Conclua o Mundo 2',
+                    'Derrote o Golfinho Chefe',
+                    'Colete 5000 moedas'
+                ],
+                'MineBlock': [
+                    'Construa seu primeiro abrigo',
+                    'Extraia um minério',
+                    'Explore uma caverna profunda',
+                    'Derrote uma criatura perigosa',
+                    'Crie todos os equipamentos essenciais'
+                ],
+                'Pixel Fury': [
+                    'Vença sua primeira batalha',
+                    'Consiga uma sequência de eliminações',
+                    'Complete uma fase sem perder vida',
+                    'Acerte um ataque especial',
+                    'Derrote 5 inimigos diferentes'
+                ],
+                'Star Wars: Lightsaber Duel - Ultra Edition': [
+                    'Vença seu primeiro duelo de sabres',
+                    'Domine os golpes da Força',
+                    'Derrote um mestre rival',
+                    'Vença três duelos consecutivos',
+                    'Torne-se um mestre do sabre'
+                ],
+                'Neon Highway ’86': [
+                    'Complete sua primeira corrida',
+                    'Termine uma corrida sem colisões',
+                    'Alcance a velocidade máxima',
+                    'Colete 30 moedas',
+                    'Domine a estrada neon'
+                ],
+                'Ultimate Football 3D': [
+                    'Vença sua primeira partida',
+                    'Marque um hat-trick',
+                    'Ganhe uma partida sem sofrer gols',
+                    'GAnhe uma partida por mais de 5 gols e diferença',
+                    'Faça um drible'
+                ]
+            };
+
+            function atualizarNomesConquista(nomeSelecionado = '') {
+                const jogo = $('formJogo').value.trim();
+                const seletorNome = $('formNome');
+                const nomes = CONQUISTAS_POR_JOGO[jogo] || [];
+
+                seletorNome.innerHTML = '';
+                const inicial = document.createElement('option');
+                inicial.value = '';
+                inicial.textContent = jogo ? 'Selecione uma conquista...' : 'Primeiro, selecione um jogo...';
+                seletorNome.appendChild(inicial);
+
+                nomes.forEach(nome => {
+                    const opcao = document.createElement('option');
+                    opcao.value = nome;
+                    opcao.textContent = nome;
+                    seletorNome.appendChild(opcao);
+                });
+
+                // Jogos personalizados já existentes continuam editáveis.
+                if (nomeSelecionado && !nomes.includes(nomeSelecionado)) {
+                    const opcao = document.createElement('option');
+                    opcao.value = nomeSelecionado;
+                    opcao.textContent = nomeSelecionado;
+                    seletorNome.appendChild(opcao);
+                }
+
+                seletorNome.disabled = !jogo;
+                seletorNome.value = nomeSelecionado || '';
+            }
+
+            // Ações do Usuário e Manipulação do Formulário
+            function alternarConcluida(id) {
+                const item = state.conquistas.find(i => i.id === id);
+                if (!item) return;
+                const eraConcluida = item.concluida;
+                item.concluida = !item.concluida;
+                salvarDados();
+                if (item.concluida) {
+                    mostrarToast(`🏆 Missão concluída! +${item.xp} Coins🪙 adicionados ao total.`);
+                } else {
+                    mostrarToast(`Missão reaberta: ${item.xp} Coins🪙 retirados do total.`);
+                }
+            }
+
+            function excluirConquista(id) {
+                const item = state.conquistas.find(i => i.id === id);
+                if (!item || !confirm(`Excluir "${item.nome}"?`)) return;
+                state.conquistas = state.conquistas.filter(i => i.id !== id);
+                if (state.idEdicao === id) cancelarEdicao();
+                salvarDados();
+                mostrarToast('Conquista excluída.');
+            }
+
+            function iniciarEdicao(id) {
+                const item = state.conquistas.find(i => i.id === id);
+                if (!item) return;
+                state.idEdicao = id;
+                // Preserva jogos já cadastrados que não estejam entre as opções predefinidas.
+                const seletorJogo = $('formJogo');
+                if (![...seletorJogo.options].some(opcao => opcao.value === item.jogo)) {
+                    const opcaoPersonalizada = document.createElement('option');
+                    opcaoPersonalizada.value = item.jogo;
+                    opcaoPersonalizada.textContent = item.jogo;
+                    seletorJogo.appendChild(opcaoPersonalizada);
+                }
+                seletorJogo.value = item.jogo;
+                atualizarNomesConquista(item.nome);
+                $('formRaridade').value = item.raridade;
+                $('formXP').value = item.xp;
+                $('formCategoria').value = item.categoria;
+                $('formIcone').value = item.icone;
+                $('formDescricao').value = item.descricao;
+
+                $('tituloFormulario').textContent = 'Editar Conquista';
+                $('btnSalvarForm').textContent = 'Salvar Alterações';
+                $('btnCancelarEdicao').classList.remove('hidden');
+                $('secaoFormulario').scrollIntoView({ behavior: 'smooth' });
+            }
+
+            function cancelarEdicao() {
+                state.idEdicao = null;
+                $('formularioConquista').reset();
+                atualizarNomesConquista();
+                $('tituloFormulario').textContent = 'Cadastrar Conquista';
+                $('btnSalvarForm').textContent = 'Salvar conquista';
+                $('btnCancelarEdicao').classList.add('hidden');
+            }
+
+            function salvarFormulario(e) {
+                e.preventDefault();
+                const dados = {
+                    jogo: $('formJogo').value.trim(),
+                    nome: $('formNome').value.trim(),
+                    raridade: $('formRaridade').value,
+                    xp: Number($('formXP').value),
+                    categoria: $('formCategoria').value,
+                    icone: $('formIcone').value,
+                    descricao: $('formDescricao').value.trim()
+                };
+
+                if (!dados.jogo || !dados.nome) {
+                    mostrarToast('Preencha os campos obrigatórios!');
+                    return;
+                }
+
+                if (state.idEdicao) {
+                    const item = state.conquistas.find(i => i.id === state.idEdicao);
+                    if (item) Object.assign(item, dados);
+                    cancelarEdicao();
+                    mostrarToast('Conquista atualizada!');
+                } else {
+                    state.conquistas.push({
+                        id: crypto.randomUUID?.() || String(Date.now()),
+                        ...dados,
+                        concluida: false,
+                        criadoEm: Date.now()
+                    });
+                    $('formularioConquista').reset();
+                    atualizarNomesConquista();
+                    mostrarToast('Nova conquista cadastrada!');
+                }
+                salvarDados();
+            }
+
+            // Exporta uma CAPTURA REAL da seção de conquistas concluídas para o PDF.
+            // O PDF recebe a imagem capturada do próprio HTML, incluindo o CSS aplicado aos cartões.
+            async function exportarBackup() {
+                const concluidas = state.conquistas.filter(item => item.concluida);
+                if (!concluidas.length) {
+                    mostrarToast('Você ainda não concluiu nenhuma conquista para exportar.');
+                    return;
+                }
+
+                const btn = $('btnExportar');
+                const statusAnterior = $('selectStatus').value;
+                const buscaAnterior = $('inputBusca').value;
+                const raridadeAnterior = $('selectRaridade').value;
+                const ordenacaoAnterior = $('selectOrdenacao').value;
+                const categoriaAnterior = state.filtroCategoria;
+                let moldura = null;
+
+                try {
+                    if (typeof window.html2canvas !== 'function') {
+                        throw new Error('A biblioteca de captura de imagem não carregou. Confira sua conexão com a internet e recarregue a página.');
+                    }
+                    if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') {
+                        throw new Error('A biblioteca de PDF não carregou. Confira sua conexão com a internet e recarregue a página.');
+                    }
+
+                    btn.disabled = true;
+                    btn.textContent = 'Gerando imagem do PDF...';
+                    mostrarToast('Preparando o PDF somente com as conquistas concluídas...');
+
+                    // Filtra a interface real para exibir somente as conquistas concluídas.
+                    $('selectStatus').value = 'done';
+                    $('inputBusca').value = '';
+                    $('selectRaridade').value = 'all';
+                    state.filtroCategoria = 'all';
+                    renderizarTudo();
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                    if (document.fonts && document.fonts.ready) await document.fonts.ready;
+
+                    const secao = $('secaoColecao');
+                    const cabecalhoOriginal = secao.firstElementChild;
+                    const listaOriginal = $('listaConquistas');
+                    const largura = Math.max(700, Math.ceil(secao.getBoundingClientRect().width));
+
+                    // Clona o cabeçalho e os cartões já renderizados pelo site; não redesenha as conquistas.
+                    moldura = document.createElement('div');
+                    moldura.className = document.documentElement.classList.contains('light') ? 'light' : '';
+                    moldura.style.cssText = `position:fixed;left:0;top:0;width:${largura}px;max-width:none;z-index:2147483647;padding:24px;background:rgb(var(--bg));color:rgb(var(--ink));`;
+                    const titulo = cabecalhoOriginal.cloneNode(true);
+                    const lista = listaOriginal.cloneNode(true);
+                    titulo.querySelectorAll('span').forEach(el => {
+                        if (el.textContent.includes('Salvo localmente')) el.remove();
+                    });
+                    lista.querySelectorAll('[data-acao="editar"], [data-acao="excluir"]').forEach(el => el.remove());
+                    lista.querySelectorAll('button[data-acao="concluir"]').forEach(el => {
+                        el.setAttribute('disabled', 'disabled');
+                        el.style.cursor = 'default';
+                    });
+                    moldura.append(titulo, lista);
+                    document.body.appendChild(moldura);
+
+                    // Espera o navegador aplicar as classes CSS e calcular o tamanho final do clone.
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                    const canvas = await window.html2canvas(moldura, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: false,
+                        backgroundColor: document.documentElement.classList.contains('light') ? '#f2f6f3' : '#0d1b1e',
+                        logging: false,
+                        width: largura,
+                        windowWidth: Math.max(window.innerWidth, largura),
+                        scrollX: 0,
+                        scrollY: 0
+                    });
+                    if (!canvas.width || !canvas.height) throw new Error('A captura da seção ficou vazia.');
+
+                    // PDF de UMA ÚNICA PÁGINA: somente a imagem da seção com conquistas concluídas.
+                    // A imagem inteira é ajustada dentro da folha, sem recortes, páginas extras ou impressão da tela.
+                    const { jsPDF } = window.jspdf;
+                    const proporcaoImagem = canvas.width / canvas.height;
+                    const orientacao = proporcaoImagem > (210 / 297) ? 'landscape' : 'portrait';
+                    const pdf = new jsPDF({ orientation: orientacao, unit: 'mm', format: 'a4', compress: true });
+                    const larguraFolha = orientacao === 'landscape' ? 297 : 210;
+                    const alturaFolha = orientacao === 'landscape' ? 210 : 297;
+                    const margem = 6;
+                    const larguraDisponivel = larguraFolha - margem * 2;
+                    const alturaDisponivel = alturaFolha - margem * 2;
+                    const escala = Math.min(larguraDisponivel / canvas.width, alturaDisponivel / canvas.height);
+                    const larguraImagem = canvas.width * escala;
+                    const alturaImagem = canvas.height * escala;
+                    const x = (larguraFolha - larguraImagem) / 2;
+                    const y = (alturaFolha - alturaImagem) / 2;
+
+                    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', x, y, larguraImagem, alturaImagem, undefined, 'FAST');
+                    pdf.save(`alcatech-conquistas-concluidas-${new Date().toISOString().slice(0, 10)}.pdf`);
+                    mostrarToast('PDF de uma página com somente as conquistas concluídas gerado!');
+                } catch (erro) {
+                    console.error('Erro ao capturar/exportar PDF:', erro);
+                    mostrarToast(erro && erro.message ? erro.message : 'Não foi possível gerar o PDF. Confira sua conexão e tente novamente.');
+                } finally {
+                    if (moldura) moldura.remove();
+                    $('selectStatus').value = statusAnterior;
+                    $('inputBusca').value = buscaAnterior;
+                    $('selectRaridade').value = raridadeAnterior;
+                    $('selectOrdenacao').value = ordenacaoAnterior;
+                    state.filtroCategoria = categoriaAnterior;
+                    renderizarTudo();
+                    btn.disabled = false;
+                    btn.textContent = 'Baixar como PDF';
+                }
+            }
+
+            // Registro de Eventos
+            function registrarOuvintes() {
+                $('btnTema').addEventListener('click', alternarTema);
+                $('formularioConquista').addEventListener('submit', salvarFormulario);
+
+                // Só mostra as cinco opções depois que um jogo for selecionado.
+                $('formJogo').addEventListener('change', () => atualizarNomesConquista());
+                $('btnCancelarEdicao').addEventListener('click', () => { cancelarEdicao(); mostrarToast('Edição cancelada.'); });
+                $('btnLimparForm').addEventListener('click', () => { if (!state.idEdicao) $('formularioConquista').reset(); else cancelarEdicao(); });
+
+                // Filtros e busca
+                $('inputBusca').addEventListener('input', renderizarTudo);
+                $('selectStatus').addEventListener('change', renderizarTudo);
+                $('selectRaridade').addEventListener('change', renderizarTudo);
+                $('selectOrdenacao').addEventListener('change', renderizarTudo);
+                $('btnLimparFiltros').addEventListener('click', () => {
+                    $('inputBusca').value = '';
+                    $('selectStatus').value = 'all';
+                    $('selectRaridade').value = 'all';
+                    $('selectOrdenacao').value = 'new';
+                    state.filtroCategoria = 'all';
+                    renderizarTudo();
+                });
+
+                // Cliques em botões de categoria
+                $('grupoFiltroCategorias').addEventListener('click', e => {
+                    const btn = e.target.closest('button[data-categoria]');
+                    if (btn) {
+                        state.filtroCategoria = btn.dataset.categoria;
+                        renderizarTudo();
+                    }
+                });
+
+                // Delegação de eventos da lista de conquistas e jogos
+                document.addEventListener('click', e => {
+                    const alvo = e.target.closest('[data-acao]');
+                    if (!alvo) return;
+                    const acao = alvo.dataset.acao;
+                    const id = alvo.dataset.id;
+
+                    if (acao === 'concluir') alternarConcluida(id);
+                    if (acao === 'editar') iniciarEdicao(id);
+                    if (acao === 'excluir') excluirConquista(id);
+                    if (acao === 'filtrar-jogo') {
+                        $('inputBusca').value = alvo.dataset.jogo;
+                        state.filtroCategoria = 'all';
+                        renderizarTudo();
+                        $('secaoColecao').scrollIntoView({ behavior: 'smooth' });
+                    }
+                });
+
+                // Ações de Exportar PDF e Limpeza Geral
+                $('btnExportar').addEventListener('click', exportarBackup);
+                $('btnApagarTudo').addEventListener('click', () => {
+                    if (!confirm('Tem certeza absoluta que deseja apagar tudo?')) return;
+                    state.conquistas = [];
+                    cancelarEdicao();
+                    salvarDados();
+                    mostrarToast('Todos os dados foram apagados.');
+                });
+
+                $('btnNovaConquista').addEventListener('click', () => {
+                    cancelarEdicao();
+                    $('secaoFormulario').scrollIntoView({ behavior: 'smooth' });
+                });
+            }
+
+            // Chuva animada no fundo (sem bloquear cliques nem a leitura).
+            function iniciarChuva() {
+                const canvas = $('rainCanvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                if (!ctx) return;
+
+                let largura = 0, altura = 0, gotas = [];
+                const reduzirMovimento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+                function redimensionar() {
+                    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                    largura = window.innerWidth;
+                    altura = window.innerHeight;
+                    canvas.width = Math.floor(largura * dpr);
+                    canvas.height = Math.floor(altura * dpr);
+                    canvas.style.width = largura + 'px';
+                    canvas.style.height = altura + 'px';
+                    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                    const quantidade = Math.min(260, Math.floor(largura / 5));
+                    gotas = Array.from({ length: quantidade }, () => ({
+                        x: Math.random() * largura,
+                        y: Math.random() * altura,
+                        tamanho: 13 + Math.random() * 22,
+                        velocidade: 2.5 + Math.random() * 4.5,
+                        opacidade: .34 + Math.random() * .38,
+                        largura: .9 + Math.random() * .65
+                    }));
+                }
+
+                function desenhar() {
+                    ctx.clearRect(0, 0, largura, altura);
+                    const claro = document.documentElement.classList.contains('light');
+                    ctx.lineCap = 'round';
+                    for (const gota of gotas) {
+                        ctx.beginPath();
+                        ctx.lineWidth = gota.largura;
+                        ctx.strokeStyle = claro
+                            ? `rgba(43, 91, 166, ${gota.opacidade})`
+                            : `rgba(135, 190, 255, ${gota.opacidade})`;
+                        ctx.moveTo(gota.x, gota.y);
+                        ctx.lineTo(gota.x - 2, gota.y + gota.tamanho);
+                        ctx.stroke();
+                        gota.y += gota.velocidade;
+                        gota.x -= .45;
+                        if (gota.y > altura + 25 || gota.x < -20) {
+                            gota.y = -gota.tamanho;
+                            gota.x = Math.random() * (largura + 40);
+                        }
+                    }
+                    if (!reduzirMovimento) requestAnimationFrame(desenhar);
+                }
+
+                redimensionar();
+                window.addEventListener('resize', redimensionar, { passive: true });
+                desenhar();
+            }
+
+            // Inicialização
+            function iniciar() {
+                state.conquistas = carregarDados();
+                inicializarTema();
+                atualizarNomesConquista();
+                iniciarChuva();
+                registrarOuvintes();
+                renderizarTudo();
+            }
+
+            iniciar();
+        })();
+    </script>
+</body>
+</html>
